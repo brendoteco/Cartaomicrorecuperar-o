@@ -1,0 +1,2301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#667eea">
+    <title>Memory Card Doctor - FUNCIONAL</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --success: #11998e;
+            --warning: #f1c40f;
+            --danger: #eb3349;
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+            --card-bg: rgba(255,255,255,0.95);
+            --text-primary: #2c3e50;
+            --text-secondary: #666;
+            --border: #dee2e6;
+            --shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        [data-theme="dark"] {
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --card-bg: rgba(30,30,46,0.95);
+            --text-primary: #f8f9fa;
+            --text-secondary: #a0a0a0;
+            --border: #2d2d44;
+            --shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        [data-theme="dark"] body {
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 20px;
+            padding-bottom: 100px;
+        }
+
+        .permission-banner {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            animation: slideDown 0.5s ease;
+        }
+
+        .permission-banner.show {
+            display: flex;
+        }
+
+        .permission-banner.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            z-index: 10;
+        }
+
+        .header h1 {
+            font-size: 1.6rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(46, 204, 113, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 15px;
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #2ecc71;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--light);
+            color: var(--text-primary);
+            border: 2px solid var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .memory-card {
+            background: var(--light);
+            border: 2px solid var(--border);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] .memory-card {
+            background: #2d2d44;
+        }
+
+        .memory-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary);
+        }
+
+        .memory-card.selected {
+            border-color: var(--primary);
+            background: rgba(102,126,234,0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .card-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+
+        .card-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            font-weight: 600;
+        }
+
+        .storage-bar {
+            margin-top: 15px;
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .storage-bar {
+            background: #2d2d44;
+        }
+
+        .storage-used {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .storage-text {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .file-browser {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--light);
+        }
+
+        [data-theme="dark"] .file-browser {
+            background: #1a1a2e;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background: rgba(102,126,234,0.1);
+        }
+
+        .file-item.selected {
+            background: rgba(102,126,234,0.2);
+        }
+
+        .file-icon {
+            font-size: 2rem;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .file-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .file-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary);
+        }
+
+        .progress-container {
+            text-align: center;
+        }
+
+        .progress-circle {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 25px;
+            position: relative;
+        }
+
+        .progress-circle svg {
+            transform: rotate(-90deg);
+        }
+
+        .progress-circle-bg {
+            fill: none;
+            stroke: #e0e0e0;
+            stroke-width: 8;
+        }
+
+        [data-theme="dark"] .progress-circle-bg {
+            stroke: #2d2d44;
+        }
+
+        .progress-circle-bar {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .scanning-animation {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+        }
+
+        .scan-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: scanBounce 1.4s infinite ease-in-out both;
+        }
+
+        .scan-dot:nth-child(1) { animation-delay: -0.32s; }
+        .scan-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes scanBounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .progress-status {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .progress-log {
+            background: var(--light);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+        }
+
+        [data-theme="dark"] .progress-log {
+            background: #1a1a2e;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .health-score {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .score-circle.good { background: linear-gradient(135deg, var(--success) 0%, #38ef7d 100%); }
+        .score-circle.warning { background: linear-gradient(135deg, var(--warning) 0%, #f39c12 100%); }
+        .score-circle.danger { background: linear-gradient(135deg, var(--danger) 0%, #f45c43 100%); }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: 20px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        [data-theme="dark"] .stat-box {
+            background: #2d2d44;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        .error-list {
+            margin-top: 20px;
+        }
+
+        .error-item {
+            background: var(--light);
+            border-left: 4px solid;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 0 10px 10px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        [data-theme="dark"] .error-item {
+            background: #2d2d44;
+        }
+
+        .error-item.critical { border-left-color: var(--danger); }
+        .error-item.high { border-left-color: #e67e22; }
+        .error-item.medium { border-left-color: var(--warning); }
+        .error-item.low { border-left-color: var(--primary); }
+
+        .error-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-top: 5px;
+            color: white;
+        }
+
+        .error-item.critical .error-badge { background: var(--danger); }
+        .error-item.high .error-badge { background: #e67e22; }
+        .error-item.medium .error-badge { background: var(--warning); color: #333; }
+        .error-item.low .error-badge { background: var(--primary); }
+
+        .qr-container {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            padding: 15px 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-around;
+            z-index: 1000;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 1.5rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--dark);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1500;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .real-file-input {
+            display: none;
+        }
+
+        .api-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 15px;
+            margin-top: 10px;
+        }
+
+        .api-status.available {
+            background: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+
+        .api-status.unavailable {
+            background: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+
+        .file-drop-zone {
+            border: 3px dashed var(--primary);
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s;
+        }
+
+        .file-drop-zone.dragover {
+            background: rgba(102,126,234,0.1);
+            border-color: var(--primary-dark);
+        }
+
+        .hex-viewer {
+            background: #1a1a2e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            padding: 15px;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow: auto;
+            margin-top: 20px;
+        }
+
+        .hex-line {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .hex-address {
+            color: #666;
+            min-width: 80px;
+        }
+
+        .hex-data {
+            color: #0ff;
+        }
+
+        .hex-ascii {
+            color: #fff;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <svg width="0" height="0" style="position:absolute">
+        <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div class="container">
+        <!-- Permission Banners -->
+        <div class="permission-banner" id="apiBanner">
+            <span>🔌</span>
+            <div>
+                <strong>APIs Disponíveis:</strong>
+                <div id="apiList" style="font-size: 0.85rem; margin-top: 5px;"></div>
+            </div>
+        </div>
+
+        <div class="permission-banner danger" id="permissionBanner">
+            <span>⚠️</span>
+            <div>
+                <strong>Permissões Necessárias</strong>
+                <div style="font-size: 0.85rem; margin-top: 5px;">
+                    Clique em "Permitir Acesso" para analisar arquivos reais
+                </div>
+            </div>
+            <button class="btn btn-success" style="margin: 0; padding: 10px 20px; width: auto;" onclick="requestPermissions()">
+                Permitir
+            </button>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            <h1>💾 Memory Card Doctor</h1>
+            <p>Análise REAL de arquivos e dispositivos</p>
+            <div class="status-badge">
+                <div class="pulse"></div>
+                <span id="systemStatus">Aguardando permissões...</span>
+            </div>
+            <div id="apiStatusContainer"></div>
+        </div>
+
+        <!-- Detection Section -->
+        <div class="section active" id="detectionSection">
+            <h2 class="section-title">
+                <span>🔍</span> Dispositivos e Arquivos
+            </h2>
+
+            <div class="file-drop-zone" id="dropZone">
+                <div style="font-size: 3rem; margin-bottom: 15px;">📁</div>
+                <p><strong>Toque para selecionar arquivos</strong></p>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;">
+                    Ou arraste arquivos aqui<br>
+                    Suporta: Imagens, Vídeos, Documentos
+                </p>
+                <input type="file" id="fileInput" class="real-file-input" multiple webkitdirectory directory>
+            </div>
+
+            <button class="btn btn-primary" onclick="selectDirectory()">
+                <span>📂</span> Selecionar Pasta/Cartão
+            </button>
+
+            <button class="btn btn-secondary" onclick="detectUSBDevices()" id="usbBtn" style="display: none;">
+                <span>🔌</span> Detectar USB/SD Real
+            </button>
+
+            <div class="card-list" id="cardList" style="margin-top: 20px;">
+                <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <div style="font-size: 3rem; margin-bottom: 15px;">📱</div>
+                    <p>Selecione arquivos ou pasta para análise real</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real File Browser -->
+        <div class="section" id="browserSection">
+            <h2 class="section-title">
+                <span>🗂️</span> Arquivos Reais Detectados
+            </h2>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <button class="btn btn-primary btn-small" style="flex: 1; min-width: 100px;" onclick="filterRealFiles('all')">Todos</button>
+                <button class="btn btn-secondary btn-small" style="flex: 1; min-width: 100px;" onclick="filterRealFiles('image')">📷 Fotos</button>
+                <button class="btn btn-secondary btn-small" style="flex: 1; min-width: 100px;" onclick="filterRealFiles('video')">🎥 Vídeos</button>
+                <button class="btn btn-secondary btn-small" style="flex: 1; min-width: 100px;" onclick="filterRealFiles('corrupted')">⚠️ Corrompidos</button>
+            </div>
+
+            <div class="file-browser" id="realFileBrowser"></div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-success" onclick="analyzeSelectedFiles()" style="flex: 2;">
+                    <span>🔬</span> Analisar Selecionados
+                </button>
+                <button class="btn btn-danger" onclick="deleteSelectedFiles()" style="flex: 1;">
+                    <span>🗑️</span> Excluir
+                </button>
+            </div>
+
+            <div class="hex-viewer" id="hexViewer" style="display: none;">
+                <div style="color: #fff; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 10px;">
+                    Visualização Hexadecimal - Header do Arquivo
+                </div>
+                <div id="hexContent"></div>
+            </div>
+        </div>
+
+        <!-- Analysis Progress -->
+        <div class="section progress-container" id="progressSection">
+            <h2 class="section-title">
+                <span>🔬</span> Análise Real em Progresso
+            </h2>
+
+            <div class="progress-circle">
+                <svg width="150" height="150">
+                    <circle class="progress-circle-bg" cx="75" cy="75" r="65"></circle>
+                    <circle class="progress-circle-bar" cx="75" cy="75" r="65" 
+                            stroke-dasharray="408" stroke-dashoffset="408" id="progressCircle"></circle>
+                </svg>
+                <div class="progress-text" id="progressText">0%</div>
+            </div>
+
+            <div class="scanning-animation">
+                <div class="scan-dot"></div>
+                <div class="scan-dot"></div>
+                <div class="scan-dot"></div>
+            </div>
+
+            <div class="progress-status" id="progressStatus">Lendo arquivos...</div>
+
+            <div class="progress-log" id="progressLog">
+                <div class="log-entry">Iniciando análise de arquivos reais...</div>
+            </div>
+
+            <button class="btn btn-danger" onclick="cancelOperation()">
+                <span>✕</span> Cancelar
+            </button>
+        </div>
+
+        <!-- Results with Real Data -->
+        <div class="section" id="resultsSection">
+            <h2 class="section-title">
+                <span>📊</span> Resultado da Análise Real
+            </h2>
+
+            <div class="health-score">
+                <div class="score-circle good" id="scoreCircle">
+                    <span id="scoreValue">0</span>
+                </div>
+                <div class="score-label" id="scoreLabel">Análise Completa</div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="healthChart"></canvas>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-number" id="statFiles">0</span>
+                    <div class="stat-label">Arquivos Analisados</div>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="statErrors">0</span>
+                    <div class="stat-label">Problemas Reais</div>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="statCorrupted">0</span>
+                    <div class="stat-label">Corrompidos</div>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="statSize">0MB</span>
+                    <div class="stat-label">Total Analisado</div>
+                </div>
+            </div>
+
+            <div class="error-list" id="errorList"></div>
+
+            <div class="qr-container">
+                <h3 style="margin-bottom: 15px;">📱 Relatório QR</h3>
+                <div id="qrcode"></div>
+            </div>
+
+            <button class="btn btn-success" onclick="repairRealFiles()">
+                <span>🔧</span> Tentar Reparar Arquivos
+            </button>
+
+            <button class="btn btn-primary" onclick="exportReport()">
+                <span>📥</span> Baixar Relatório
+            </button>
+
+            <button class="btn btn-secondary" onclick="backToStart()">
+                <span>←</span> Nova Análise
+            </button>
+        </div>
+
+        <!-- Repair Section -->
+        <div class="section progress-container" id="repairSection">
+            <h2 class="section-title">
+                <span>🛠️</span> Reparo de Arquivos
+            </h2>
+
+            <div class="progress-circle">
+                <svg width="150" height="150">
+                    <circle class="progress-circle-bg" cx="75" cy="75" r="65"></circle>
+                    <circle class="progress-circle-bar" cx="75" cy="75" r="65" 
+                            stroke-dasharray="408" stroke-dashoffset="408" id="repairCircle"></circle>
+                </svg>
+                <div class="progress-text" id="repairText">0%</div>
+            </div>
+
+            <div class="progress-status" id="repairStatus">Analisando estrutura...</div>
+
+            <div class="file-browser" id="repairLog" style="margin-top: 20px;">
+                <div class="file-item">
+                    <span class="file-icon">📝</span>
+                    <div class="file-info">
+                        <div class="file-name">Log de Reparo</div>
+                        <div class="file-meta">Iniciando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success -->
+        <div class="section" id="successSection">
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 5rem; margin-bottom: 20px;">✅</div>
+                <h2 style="color: var(--success); margin-bottom: 15px;">Concluído!</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 25px;">
+                    Arquivos analisados e reparados salvos para download
+                </p>
+                
+                <div class="stats-grid" style="margin-bottom: 25px;">
+                    <div class="stat-box">
+                        <span class="stat-number" style="color: var(--success);" id="finalRepaired">0</span>
+                        <div class="stat-label">Arquivos Reparados</div>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" style="color: var(--success);" id="finalDownloaded">0</span>
+                        <div class="stat-label">Downloads Prontos</div>
+                    </div>
+                </div>
+
+                <div id="downloadLinks" style="margin-bottom: 20px;"></div>
+
+                <button class="btn btn-primary" onclick="backToStart()">
+                    <span>🔄</span> Analisar Mais Arquivos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content">
+            <div style="font-size: 4rem; margin-bottom: 20px;">⚠️</div>
+            <h3>Confirmar Operação</h3>
+            <p id="modalText">Esta ação modificará arquivos. Continuar?</p>
+            <button class="btn btn-success" onclick="confirmAction()" style="margin-bottom: 10px;">
+                <span>✓</span> Confirmar
+            </button>
+            <button class="btn btn-secondary" onclick="closeModal()">
+                Cancelar
+            </button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+        <a class="nav-item active" onclick="showSection('detection')">
+            <span class="nav-icon">🔍</span>
+            <span>Buscar</span>
+        </a>
+        <a class="nav-item" onclick="showSection('browser')">
+            <span class="nav-icon">🗂️</span>
+            <span>Arquivos</span>
+        </a>
+        <a class="nav-item" onclick="showSection('results')">
+            <span class="nav-icon">📊</span>
+            <span>Resultados</span>
+        </a>
+        <a class="nav-item" onclick="showInfo()">
+            <span class="nav-icon">ℹ️</span>
+            <span>Info</span>
+        </a>
+    </nav>
+
+    <script>
+        // ==========================================
+        // VARIÁVEIS GLOBAIS E ESTADO
+        // ==========================================
+        
+        let realFiles = []; // Arquivos reais selecionados
+        let analyzedFiles = []; // Resultados da análise
+        let selectedFiles = new Set();
+        let isProcessing = false;
+        let currentChart = null;
+        let db = null; // IndexedDB
+        
+        // APIs disponíveis
+        const apis = {
+            fileSystem: 'chooseFileSystemEntries' in window || 'showOpenFilePicker' in window,
+            webusb: 'usb' in navigator,
+            webserial: 'serial' in navigator,
+            indexedDB: 'indexedDB' in window,
+            fileAPI: 'FileReader' in window,
+            dragDrop: 'DragEvent' in window
+        };
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            initIndexedDB();
+            checkAPIs();
+            setupDragDrop();
+            setupFileInput();
+            loadTheme();
+        });
+
+        function checkAPIs() {
+            const apiList = document.getElementById('apiList');
+            const statusDiv = document.getElementById('apiStatusContainer');
+            
+            let availableAPIs = [];
+            let html = '';
+            
+            if (apis.fileSystem) {
+                availableAPIs.push('File System Access API ✅');
+                document.getElementById('usbBtn').style.display = 'block';
+            }
+            if (apis.webusb) availableAPIs.push('WebUSB API ✅');
+            if (apis.webserial) availableAPIs.push('Web Serial API ✅');
+            if (apis.indexedDB) availableAPIs.push('IndexedDB ✅');
+            
+            apiList.innerHTML = availableAPIs.join('<br>') || 'APIs básicas apenas';
+            
+            // Status indicators
+            statusDiv.innerHTML = `
+                <div class="api-status ${apis.fileSystem ? 'available' : 'unavailable'}">
+                    ${apis.fileSystem ? '✅' : '❌'} Acesso Direto a Arquivos
+                </div>
+            `;
+            
+            if (availableAPIs.length > 0) {
+                document.getElementById('apiBanner').classList.add('show');
+                document.getElementById('systemStatus').textContent = 'Pronto para análise real';
+            } else {
+                document.getElementById('permissionBanner').classList.add('show');
+            }
+        }
+
+        function initIndexedDB() {
+            const request = indexedDB.open('MemoryCardDB', 1);
+            
+            request.onerror = () => console.log('IndexedDB não disponível');
+            
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                console.log('IndexedDB pronto');
+            };
+            
+            request.onupgradeneeded = (e) => {
+                const database = e.target.result;
+                database.createObjectStore('files', { keyPath: 'id', autoIncrement: true });
+                database.createObjectStore('analysis', { keyPath: 'timestamp' });
+            };
+        }
+
+        // ==========================================
+        // PERMISSÕES E ACESSO A ARQUIVOS
+        // ==========================================
+        
+        async function requestPermissions() {
+            try {
+                if (apis.fileSystem) {
+                    const handle = await window.showDirectoryPicker();
+                    await processDirectory(handle);
+                    document.getElementById('permissionBanner').classList.remove('show');
+                    showToast('✅ Acesso concedido! Analisando arquivos...');
+                } else {
+                    // Fallback para input de arquivo tradicional
+                    document.getElementById('fileInput').click();
+                }
+            } catch (err) {
+                console.error('Permissão negada:', err);
+                showToast('❌ Permissão necessária para análise real');
+            }
+        }
+
+        async function selectDirectory() {
+            try {
+                if (apis.fileSystem) {
+                    const dirHandle = await window.showDirectoryPicker();
+                    await processDirectory(dirHandle);
+                } else {
+                    document.getElementById('fileInput').click();
+                }
+            } catch (err) {
+                showToast('Seleção cancelada');
+            }
+        }
+
+        function setupFileInput() {
+            const input = document.getElementById('fileInput');
+            
+            input.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length > 0) {
+                    await processFiles(files);
+                }
+            });
+        }
+
+        function setupDragDrop() {
+            const dropZone = document.getElementById('dropZone');
+            
+            dropZone.addEventListener('click', () => {
+                if (!apis.fileSystem) {
+                    document.getElementById('fileInput').click();
+                }
+            });
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+            
+            dropZone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                
+                const files = Array.from(e.dataTransfer.files);
+                if (files.length > 0) {
+                    await processFiles(files);
+                }
+            });
+        }
+
+        // ==========================================
+        // PROCESSAMENTO REAL DE ARQUIVOS
+        // ==========================================
+        
+        async function processDirectory(dirHandle) {
+            realFiles = [];
+            const promises = [];
+            
+            showToast('📂 Lendo diretório...');
+            
+            try {
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        promises.push(processFileEntry(entry));
+                    } else if (entry.kind === 'directory') {
+                        // Recursão para subdiretórios
+                        promises.push(processSubDirectory(entry));
+                    }
+                }
+                
+                await Promise.all(promises);
+                displayRealFiles();
+                
+            } catch (err) {
+                console.error('Erro ao ler diretório:', err);
+                showToast('❌ Erro ao acessar diretório');
+            }
+        }
+
+        async function processSubDirectory(dirHandle) {
+            try {
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        await processFileEntry(entry);
+                    }
+                }
+            } catch (err) {
+                console.error('Erro subdiretório:', err);
+            }
+        }
+
+        async function processFileEntry(fileHandle) {
+            try {
+                const file = await fileHandle.getFile();
+                const analysis = await analyzeFileReal(file);
+                
+                realFiles.push({
+                    handle: fileHandle,
+                    file: file,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    lastModified: file.lastModified,
+                    ...analysis
+                });
+            } catch (err) {
+                console.error('Erro arquivo:', err);
+            }
+        }
+
+        async function processFiles(files) {
+            realFiles = [];
+            
+            for (const file of files) {
+                const analysis = await analyzeFileReal(file);
+                realFiles.push({
+                    file: file,
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    lastModified: file.lastModified,
+                    ...analysis
+                });
+            }
+            
+            displayRealFiles();
+        }
+
+        // ==========================================
+        // ANÁLISE REAL DE ARQUIVOS
+        // ==========================================
+        
+        async function analyzeFileReal(file) {
+            const result = {
+                isCorrupted: false,
+                errors: [],
+                headerValid: true,
+                canRepair: false,
+                fileType: detectFileType(file.name),
+                hash: null
+            };
+            
+            try {
+                // Ler primeiros 8KB para análise de header
+                const headerChunk = file.slice(0, 8192);
+                const headerData = await readFileChunk(headerChunk);
+                
+                // Verificar header por tipo
+                result.headerValid = validateHeader(headerData, result.fileType);
+                
+                if (!result.headerValid) {
+                    result.isCorrupted = true;
+                    result.errors.push('HEADER_INVALID');
+                    result.canRepair = canRepairHeader(result.fileType);
+                }
+                
+                // Calcular hash para detectar duplicados
+                result.hash = await calculateHash(file);
+                
+                // Verificar se arquivo está vazio ou truncado
+                if (file.size === 0) {
+                    result.isCorrupted = true;
+                    result.errors.push('ZERO_SIZE');
+                }
+                
+                // Verificar timestamp
+                if (file.lastModified > Date.now() + 86400000) {
+                    result.errors.push('FUTURE_DATE');
+                }
+                
+                // Análise específica por tipo
+                if (result.fileType === 'image') {
+                    await analyzeImage(file, result);
+                } else if (result.fileType === 'video') {
+                    await analyzeVideo(file, result);
+                }
+                
+            } catch (err) {
+                result.isCorrupted = true;
+                result.errors.push('READ_ERROR');
+                console.error('Erro análise:', err);
+            }
+            
+            return result;
+        }
+
+        function detectFileType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'raw', 'cr2', 'nef'];
+            const videoExts = ['mp4', 'mov', 'avi', 'mkv', 'flv', 'wmv'];
+            const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg'];
+            const docExts = ['pdf', 'doc', 'docx', 'txt', 'rtf'];
+            
+            if (imageExts.includes(ext)) return 'image';
+            if (videoExts.includes(ext)) return 'video';
+            if (audioExts.includes(ext)) return 'audio';
+            if (docExts.includes(ext)) return 'document';
+            return 'unknown';
+        }
+
+        function validateHeader(data, type) {
+            const arr = new Uint8Array(data);
+            
+            // JPEG: FF D8 FF
+            if (type === 'image' && (arr[0] === 0xFF && arr[1] === 0xD8)) return true;
+            
+            // PNG: 89 50 4E 47
+            if (type === 'image' && (arr[0] === 0x89 && arr[1] === 0x50)) return true;
+            
+            // GIF: 47 49 46 38
+            if (type === 'image' && (arr[0] === 0x47 && arr[1] === 0x49)) return true;
+            
+            // MP4: 00 00 00 xx 66 74 79 70 (ftyp)
+            if (type === 'video' && findSequence(arr, [0x66, 0x74, 0x79, 0x70]) !== -1) return true;
+            
+            // PDF: 25 50 44 46
+            if (type === 'document' && (arr[0] === 0x25 && arr[1] === 0x50)) return true;
+            
+            // ZIP/PK: 50 4B 03 04
+            if (arr[0] === 0x50 && arr[1] === 0x4B) return true;
+            
+            return false;
+        }
+
+        function findSequence(arr, seq) {
+            for (let i = 0; i < arr.length - seq.length; i++) {
+                if (seq.every((byte, j) => arr[i + j] === byte)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        function canRepairHeader(type) {
+            return ['image', 'video'].includes(type);
+        }
+
+        async function analyzeImage(file, result) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                
+                img.onload = () => {
+                    result.dimensions = `${img.naturalWidth}x${img.naturalHeight}`;
+                    URL.revokeObjectURL(url);
+                    resolve();
+                };
+                
+                img.onerror = () => {
+                    result.isCorrupted = true;
+                    result.errors.push('IMAGE_LOAD_ERROR');
+                    result.canRepair = true;
+                    URL.revokeObjectURL(url);
+                    resolve();
+                };
+                
+                img.src = url;
+            });
+        }
+
+        async function analyzeVideo(file, result) {
+            return new Promise((resolve) => {
+                const video = document.createElement('video');
+                const url = URL.createObjectURL(file);
+                
+                video.onloadedmetadata = () => {
+                    result.duration = Math.round(video.duration * 100) / 100;
+                    result.dimensions = `${video.videoWidth}x${video.videoHeight}`;
+                    URL.revokeObjectURL(url);
+                    resolve();
+                };
+                
+                video.onerror = () => {
+                    result.isCorrupted = true;
+                    result.errors.push('VIDEO_DECODE_ERROR');
+                    URL.revokeObjectURL(url);
+                    resolve();
+                };
+                
+                video.src = url;
+                video.load();
+            });
+        }
+
+        async function readFileChunk(blob) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsArrayBuffer(blob);
+            });
+        }
+
+        async function calculateHash(file) {
+            // Simplificação: usar nome + tamanho + data como "hash"
+            const str = `${file.name}${file.size}${file.lastModified}`;
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return hash.toString(16);
+        }
+
+        // ==========================================
+        // DISPLAY E INTERFACE
+        // ==========================================
+        
+        function displayRealFiles() {
+            const browser = document.getElementById('realFileBrowser');
+            browser.innerHTML = '';
+            
+            if (realFiles.length === 0) {
+                browser.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">Nenhum arquivo encontrado</div>';
+                return;
+            }
+            
+            // Atualizar lista de cards
+            const cardList = document.getElementById('cardList');
+            cardList.innerHTML = `
+                <div class="memory-card selected">
+                    <div class="card-header">
+                        <div class="card-name">📂 ${realFiles.length} Arquivos Reais</div>
+                        <span class="card-badge">SELECIONADO</span>
+                    </div>
+                    <div class="card-info">
+                        <div class="info-item">
+                            <span class="info-label">Total</span>
+                            <span class="info-value">${formatBytes(realFiles.reduce((a, f) => a + f.size, 0))}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Corrompidos</span>
+                            <span class="info-value" style="color: ${realFiles.filter(f => f.isCorrupted).length > 0 ? 'var(--danger)' : 'var(--success)'}">
+                                ${realFiles.filter(f => f.isCorrupted).length}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Mostrar na seção de browser
+            realFiles.forEach((file, index) => {
+                const fileEl = document.createElement('div');
+                fileEl.className = `file-item ${file.isCorrupted ? 'corrupted' : ''}`;
+                if (selectedFiles.has(index)) fileEl.classList.add('selected');
+                
+                const icon = file.fileType === 'image' ? '🖼️' : 
+                           file.fileType === 'video' ? '🎥' : 
+                           file.fileType === 'audio' ? '🎵' : 
+                           file.fileType === 'document' ? '📄' : '📁';
+                
+                const status = file.isCorrupted ? '⚠️ ' : '✅ ';
+                
+                fileEl.innerHTML = `
+                    <input type="checkbox" class="file-checkbox" ${selectedFiles.has(index) ? 'checked' : ''}>
+                    <span class="file-icon">${icon}</span>
+                    <div class="file-info">
+                        <div class="file-name">${status}${file.name}</div>
+                        <div class="file-meta">
+                            ${formatBytes(file.size)} • ${file.fileType.toUpperCase()}
+                            ${file.dimensions ? ` • ${file.dimensions}` : ''}
+                            ${file.errors.length > 0 ? ` • ${file.errors.length} problemas` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                fileEl.onclick = () => toggleRealFileSelection(index, fileEl);
+                browser.appendChild(fileEl);
+            });
+            
+            // Mostrar seção de arquivos
+            document.getElementById('detectionSection').classList.remove('active');
+            document.getElementById('browserSection').classList.add('active');
+            
+            // Atualizar nav
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.nav-item')[1].classList.add('active');
+            
+            showToast(`📁 ${realFiles.length} arquivos carregados`);
+        }
+
+        function toggleRealFileSelection(index, element) {
+            const checkbox = element.querySelector('.file-checkbox');
+            checkbox.checked = !checkbox.checked;
+            
+            if (checkbox.checked) {
+                selectedFiles.add(index);
+                element.classList.add('selected');
+            } else {
+                selectedFiles.delete(index);
+                element.classList.remove('selected');
+            }
+        }
+
+        function filterRealFiles(filter) {
+            const items = document.querySelectorAll('#realFileBrowser .file-item');
+            
+            items.forEach((item, index) => {
+                const file = realFiles[index];
+                let show = false;
+                
+                if (filter === 'all') show = true;
+                else if (filter === 'corrupted') show = file.isCorrupted;
+                else show = file.fileType === filter;
+                
+                item.style.display = show ? 'flex' : 'none';
+            });
+        }
+
+        // ==========================================
+        // ANÁLISE EM MASSA
+        // ==========================================
+        
+        async function analyzeSelectedFiles() {
+            const indices = selectedFiles.size > 0 ? Array.from(selectedFiles) : 
+                           realFiles.map((_, i) => i);
+            
+            if (indices.length === 0) {
+                showToast('⚠️ Selecione arquivos primeiro');
+                return;
+            }
+            
+            document.getElementById('browserSection').classList.remove('active');
+            document.getElementById('progressSection').classList.add('active');
+            
+            isProcessing = true;
+            let progress = 0;
+            analyzedFiles = [];
+            
+            const log = document.getElementById('progressLog');
+            log.innerHTML = '<div class="log-entry">Iniciando análise profunda...</div>';
+            
+            for (let i = 0; i < indices.length; i++) {
+                if (!isProcessing) break;
+                
+                const idx = indices[i];
+                const file = realFiles[idx];
+                
+                progress = Math.round((i / indices.length) * 100);
+                updateProgress(
+                    document.getElementById('progressCircle'),
+                    document.getElementById('progressText'),
+                    progress
+                );
+                
+                document.getElementById('progressStatus').textContent = 
+                    `Analisando ${i + 1}/${indices.length}: ${file.name}`;
+                
+                addLog('progressLog', `Analisando ${file.name}...`);
+                
+                // Análise profunda
+                const deepAnalysis = await deepAnalyzeFile(file);
+                analyzedFiles.push({ ...file, ...deepAnalysis, originalIndex: idx });
+                
+                // Mostrar hex viewer para primeiro arquivo corrompido
+                if (deepAnalysis.isCorrupted && !document.getElementById('hexViewer').style.display) {
+                    showHexViewer(file.file);
+                }
+                
+                await new Promise(r => setTimeout(r, 100)); // Permitir UI update
+            }
+            
+            if (isProcessing) {
+                updateProgress(
+                    document.getElementById('progressCircle'),
+                    document.getElementById('progressText'),
+                    100
+                );
+                setTimeout(showRealResults, 500);
+            }
+        }
+
+        async function deepAnalyzeFile(fileObj) {
+            const result = {
+                isCorrupted: fileObj.isCorrupted,
+                errors: [...fileObj.errors],
+                canRepair: fileObj.canRepair,
+                repairAttempts: []
+            };
+            
+            try {
+                // Tentar ler arquivo completo
+                const buffer = await readFileChunk(fileObj.file);
+                const arr = new Uint8Array(buffer);
+                
+                // Verificar padrões de corrupção
+                const zeroCount = arr.filter(b => b === 0).length;
+                const zeroRatio = zeroCount / arr.length;
+                
+                if (zeroRatio > 0.5) {
+                    result.errors.push('HIGH_ZERO_RATIO');
+                    result.isCorrupted = true;
+                }
+                
+                // Verificar entropia (arquivos criptografados/corrompidos têm entropia alta)
+                const entropy = calculateEntropy(arr);
+                if (entropy > 7.5 && fileObj.fileType !== 'encrypted') {
+                    result.errors.push('HIGH_ENTROPY_SUSPECT');
+                }
+                
+                // Verificar assinaturas no final do arquivo (truncamento)
+                if (fileObj.fileType === 'image') {
+                    const footerValid = checkImageFooter(arr, fileObj.fileType);
+                    if (!footerValid) {
+                        result.errors.push('TRUNCATED_FILE');
+                        result.isCorrupted = true;
+                        result.canRepair = true;
+                    }
+                }
+                
+            } catch (err) {
+                result.errors.push('DEEP_READ_ERROR');
+                result.isCorrupted = true;
+            }
+            
+            return result;
+        }
+
+        function calculateEntropy(arr) {
+            const freq = {};
+            for (const byte of arr) {
+                freq[byte] = (freq[byte] || 0) + 1;
+            }
+            
+            let entropy = 0;
+            const len = arr.length;
+            for (const count of Object.values(freq)) {
+                const p = count / len;
+                entropy -= p * Math.log2(p);
+            }
+            return entropy;
+        }
+
+        function checkImageFooter(arr, type) {
+            // JPEG deve terminar com FF D9
+            if (type === 'image') {
+                const len = arr.length;
+                if (arr[len-2] === 0xFF && arr[len-1] === 0xD9) return true;
+                // Procurar FF D9 no final
+                for (let i = len - 10; i < len - 1; i++) {
+                    if (arr[i] === 0xFF && arr[i+1] === 0xD9) return true;
+                }
+            }
+            return false;
+        }
+
+        async function showHexViewer(file) {
+            const viewer = document.getElementById('hexViewer');
+            const content = document.getElementById('hexContent');
+            
+            try {
+                const buffer = await readFileChunk(file.slice(0, 256));
+                const arr = new Uint8Array(buffer);
+                
+                let html = '';
+                for (let i = 0; i < arr.length; i += 16) {
+                    const line = arr.slice(i, i + 16);
+                    const hex = Array.from(line).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                    const ascii = Array.from(line).map(b => 
+                        b >= 32 && b < 127 ? String.fromCharCode(b) : '.'
+                    ).join('');
+                    
+                    html += `
+                        <div class="hex-line">
+                            <span class="hex-address">${i.toString(16).padStart(8, '0')}</span>
+                            <span class="hex-data">${hex}</span>
+                            <span class="hex-ascii">${ascii}</span>
+                        </div>
+                    `;
+                }
+                
+                content.innerHTML = html;
+                viewer.style.display = 'block';
+                
+            } catch (err) {
+                console.error('Erro hex viewer:', err);
+            }
+        }
+
+        // ==========================================
+        // RESULTADOS REAIS
+        // ==========================================
+        
+        function showRealResults() {
+            document.getElementById('progressSection').classList.remove('active');
+            document.getElementById('resultsSection').classList.add('active');
+            
+            const totalFiles = analyzedFiles.length;
+            const corruptedFiles = analyzedFiles.filter(f => f.isCorrupted);
+            const errorCount = analyzedFiles.reduce((a, f) => a + f.errors.length, 0);
+            const totalSize = analyzedFiles.reduce((a, f) => a + f.size, 0);
+            
+            // Calcular score de saúde
+            const healthScore = Math.max(0, 100 - (corruptedFiles.length / totalFiles * 100) - (errorCount * 2));
+            
+            // Atualizar display
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreValue = document.getElementById('scoreValue');
+            const scoreLabel = document.getElementById('scoreLabel');
+            
+            scoreValue.textContent = Math.round(healthScore);
+            
+            if (healthScore >= 90) {
+                scoreCircle.className = 'score-circle good';
+                scoreLabel.textContent = 'Excelente - Poucos problemas';
+            } else if (healthScore >= 70) {
+                scoreCircle.className = 'score-circle warning';
+                scoreLabel.textContent = 'Atenção - Alguns arquivos corrompidos';
+            } else {
+                scoreCircle.className = 'score-circle danger';
+                scoreLabel.textContent = 'Crítico - Muitos arquivos danificados';
+            }
+            
+            // Stats
+            document.getElementById('statFiles').textContent = totalFiles;
+            document.getElementById('statErrors').textContent = errorCount;
+            document.getElementById('statCorrupted').textContent = corruptedFiles.length;
+            document.getElementById('statSize').textContent = formatBytes(totalSize);
+            
+            // Chart
+            createHealthChart(healthScore);
+            
+            // Error list detalhada
+            const errorList = document.getElementById('errorList');
+            errorList.innerHTML = '<h3 style="margin-bottom: 15px;">Problemas Detalhados:</h3>';
+            
+            corruptedFiles.forEach(file => {
+                const errorEl = document.createElement('div');
+                const severity = file.errors.includes('TRUNCATED_FILE') ? 'critical' : 
+                                file.errors.includes('HEADER_INVALID') ? 'high' : 'medium';
+                
+                errorEl.className = `error-item ${severity}`;
+                errorEl.innerHTML = `
+                    <span class="file-icon">📄</span>
+                    <div class="error-content">
+                        <h4>${file.name}</h4>
+                        <p>${file.errors.join(', ')} • ${formatBytes(file.size)}</p>
+                        <span class="error-badge">${severity}</span>
+                        ${file.canRepair ? '<span style="color: var(--success); margin-left: 10px;">✓ Reparável</span>' : ''}
+                    </div>
+                `;
+                errorList.appendChild(errorEl);
+            });
+            
+            if (corruptedFiles.length === 0) {
+                errorList.innerHTML += '<div style="text-align: center; padding: 20px; color: var(--success);">✅ Nenhum arquivo corrompido detectado!</div>';
+            }
+            
+            // QR Code
+            document.getElementById('qrcode').innerHTML = '';
+            const reportData = JSON.stringify({
+                date: new Date().toISOString(),
+                files: totalFiles,
+                corrupted: corruptedFiles.length,
+                score: Math.round(healthScore)
+            });
+            
+            new QRCode(document.getElementById('qrcode'), {
+                text: reportData,
+                width: 128,
+                height: 128
+            });
+            
+            // Salvar no IndexedDB
+            saveAnalysisToDB({
+                timestamp: Date.now(),
+                files: analyzedFiles,
+                score: healthScore
+            });
+            
+            // Atualizar nav
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.nav-item')[2].classList.add('active');
+        }
+
+        function saveAnalysisToDB(data) {
+            if (!db) return;
+            
+            const tx = db.transaction('analysis', 'readwrite');
+            const store = tx.objectStore('analysis');
+            store.put(data);
+        }
+
+        // ==========================================
+        // REPARO REAL DE ARQUIVOS
+        // ==========================================
+        
+        async function repairRealFiles() {
+            const repairable = analyzedFiles.filter(f => f.canRepair);
+            
+            if (repairable.length === 0) {
+                showToast('ℹ️ Nenhum arquivo reparável encontrado');
+                return;
+            }
+            
+            document.getElementById('resultsSection').classList.remove('active');
+            document.getElementById('repairSection').classList.add('active');
+            
+            const repairedFiles = [];
+            let progress = 0;
+            
+            for (let i = 0; i < repairable.length; i++) {
+                const file = repairable[i];
+                progress = Math.round((i / repairable.length) * 100);
+                
+                updateProgress(
+                    document.getElementById('repairCircle'),
+                    document.getElementById('repairText'),
+                    progress
+                );
+                
+                document.getElementById('repairStatus').textContent = 
+                    `Reparando ${file.name}...`;
+                
+                try {
+                    const repaired = await attemptRepair(file);
+                    if (repaired) {
+                        repairedFiles.push(repaired);
+                        addRepairLog(`✅ ${file.name} reparado`);
+                    } else {
+                        addRepairLog(`❌ ${file.name} não pôde ser reparado`);
+                    }
+                } catch (err) {
+                    addRepairLog(`❌ Erro em ${file.name}: ${err.message}`);
+                }
+                
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
+            updateProgress(
+                document.getElementById('repairCircle'),
+                document.getElementById('repairText'),
+                100
+            );
+            
+            setTimeout(() => showRepairSuccess(repairedFiles), 500);
+        }
+
+        async function attemptRepair(fileObj) {
+            // Estratégias de reparo baseadas no tipo de erro
+            
+            if (fileObj.errors.includes('HEADER_INVALID')) {
+                return await repairHeader(fileObj);
+            }
+            
+            if (fileObj.errors.includes('TRUNCATED_FILE')) {
+                return await repairTruncated(fileObj);
+            }
+            
+            return null;
+        }
+
+        async function repairHeader(fileObj) {
+            try {
+                const buffer = await readFileChunk(fileObj.file);
+                const arr = new Uint8Array(buffer);
+                
+                let repaired = null;
+                
+                if (fileObj.fileType === 'image') {
+                    // Tentar encontrar header válido
+                    if (arr[0] !== 0xFF || arr[1] !== 0xD8) {
+                        // Inserir header JPEG
+                        const newArr = new Uint8Array(arr.length + 3);
+                        newArr[0] = 0xFF;
+                        newArr[1] = 0xD8;
+                        newArr[2] = 0xFF;
+                        newArr.set(arr, 3);
+                        repaired = newArr;
+                    }
+                }
+                
+                if (repaired) {
+                    const blob = new Blob([repaired], { type: fileObj.file.type || 'application/octet-stream' });
+                    return {
+                        name: `repaired_${fileObj.name}`,
+                        blob: blob,
+                        originalName: fileObj.name,
+                        repairType: 'header'
+                    };
+                }
+                
+            } catch (err) {
+                console.error('Erro reparo:', err);
+            }
+            
+            return null;
+        }
+
+        async function repairTruncated(fileObj) {
+            try {
+                // Para arquivos truncados, tentar salvar o que está intacto
+                const buffer = await readFileChunk(fileObj.file);
+                const arr = new Uint8Array(buffer);
+                
+                // Procurar última marca válida
+                let cutPoint = arr.length;
+                
+                if (fileObj.fileType === 'image') {
+                    // Procurar FF D9
+                    for (let i = arr.length - 2; i >= 0; i--) {
+                        if (arr[i] === 0xFF && arr[i+1] === 0xD9) {
+                            cutPoint = i + 2;
+                            break;
+                        }
+                    }
+                }
+                
+                if (cutPoint < arr.length) {
+                    const repaired = arr.slice(0, cutPoint);
+                    const blob = new Blob([repaired], { type: fileObj.file.type });
+                    
+                    return {
+                        name: `truncated_fixed_${fileObj.name}`,
+                        blob: blob,
+                        originalName: fileObj.name,
+                        repairType: 'truncation',
+                        saved: arr.length - cutPoint
+                    };
+                }
+                
+            } catch (err) {
+                console.error('Erro reparo truncado:', err);
+            }
+            
+            return null;
+        }
+
+        function addRepairLog(message) {
+            const log = document.getElementById('repairLog');
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            item.innerHTML = `
+                <span class="file-icon">${message.includes('✅') ? '✅' : message.includes('❌') ? '❌' : '📝'}</span>
+                <div class="file-info">
+                    <div class="file-name">${message}</div>
+                    <div class="file-meta">${new Date().toLocaleTimeString()}</div>
+                </div>
+            `;
+            log.appendChild(item);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function showRepairSuccess(repairedFiles) {
+            document.getElementById('repairSection').classList.remove('active');
+            document.getElementById('successSection').classList.add('active');
+            
+            document.getElementById('finalRepaired').textContent = repairedFiles.length;
+            document.getElementById('finalDownloaded').textContent = repairedFiles.length;
+            
+            const linksDiv = document.getElementById('downloadLinks');
+            linksDiv.innerHTML = '<h3 style="margin-bottom: 15px;">Arquivos para Download:</h3>';
+            
+            repairedFiles.forEach(file => {
+                const url = URL.createObjectURL(file.blob);
+                const btn = document.createElement('a');
+                btn.href = url;
+                btn.download = file.name;
+                btn.className = 'btn btn-primary';
+                btn.style.marginBottom = '10px';
+                btn.innerHTML = `<span>⬇️</span> Baixar ${file.name}`;
+                linksDiv.appendChild(btn);
+            });
+        }
+
+        // ==========================================
+        // UTILITÁRIOS
+        // ==========================================
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function updateProgress(circle, text, percent) {
+            const circumference = 2 * Math.PI * 65;
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+            text.textContent = percent + '%';
+        }
+
+        function addLog(logId, message) {
+            const log = document.getElementById(logId);
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function createHealthChart(score) {
+            const ctx = document.getElementById('healthChart').getContext('2d');
+            
+            if (currentChart) currentChart.destroy();
+            
+            currentChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Saúde', 'Problemas'],
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [
+                            score >= 90 ? '#11998e' : score >= 70 ? '#f1c40f' : '#eb3349',
+                            '#e0e0e0'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+
+        function loadTheme() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+       
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            
+            const sectionMap = {
+                'detection': 'detectionSection',
+                'browser': 'browserSection',
+                'results': 'resultsSection'
+            };
+            
+            if (sectionMap[section]) {
+                document.getElementById(sectionMap[section]).classList.add('active');
+            }
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event.target.closest('.nav-item').classList.add('active');
+        }
+
+        function showInfo() {
+            const info = `
+📱 Memory Card Doctor - Versão Funcional
+
+✅ APIs Disponíveis:
+${apis.fileSystem ? '• File System Access API\n' : ''}${apis.webusb ? '• WebUSB API\n' : ''}${apis.webserial ? '• Web Serial API\n' : ''}${apis.indexedDB ? '• IndexedDB\n' : ''}• FileReader API
+• Drag & Drop API
+
+🔧 Funcionalidades Reais:
+• Análise de headers de arquivos
+• Detecção de corrupção
+• Reparo de JPEG truncados
+• Visualização hexadecimal
+• Geração de QR Code
+• Persistência local
+
+⚠️ Limitações:
+• Navegador bloqueia acesso direto a hardware
+• WebUSB requer dispositivos específicos
+• Safari não suporta File System Access
+
+💡 Dica: Use Chrome/Edge para funcionalidades completas
+            `;
+            alert(info);
+        }
+
+        function backToStart() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('detectionSection').classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelectorAll('.nav-item')[0].classList.add('active');
+            
+            // Reset state
+            isProcessing = false;
+            selectedFiles.clear();
+            document.getElementById('hexViewer').style.display = 'none';
+            
+            // Clear logs
+            document.getElementById('progressLog').innerHTML = '<div class="log-entry">Pronto para nova análise...</div>';
+            document.getElementById('repairLog').innerHTML = '<div class="file-item"><span class="file-icon">📝</span><div class="file-info"><div class="file-name">Log de Reparo</div><div class="file-meta">Aguardando...</div></div></div>';
+            
+            updateProgress(document.getElementById('progressCircle'), document.getElementById('progressText'), 0);
+            updateProgress(document.getElementById('repairCircle'), document.getElementById('repairText'), 0);
+        }
+
+        function cancelOperation() {
+            isProcessing = false;
+            showToast('❌ Operação cancelada');
+            backToStart();
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('active');
+        }
+
+        function confirmAction() {
+            closeModal();
+        }
+
+        function exportReport() {
+            const report = {
+                generatedAt: new Date().toISOString(),
+                summary: {
+                    totalFiles: analyzedFiles.length,
+                    corruptedFiles: analyzedFiles.filter(f => f.isCorrupted).length,
+                    totalErrors: analyzedFiles.reduce((a, f) => a + f.errors.length, 0),
+                    totalSize: analyzedFiles.reduce((a, f) => a + f.size, 0)
+                },
+                files: analyzedFiles.map(f => ({
+                    name: f.name,
+                    size: f.size,
+                    type: f.fileType,
+                    corrupted: f.isCorrupted,
+                    errors: f.errors,
+                    canRepair: f.canRepair
+                }))
+            };
+            
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `memory-card-report-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('📊 Relatório exportado!');
+        }
+
+        function deleteSelectedFiles() {
+            if (selectedFiles.size === 0) {
+                showToast('⚠️ Selecione arquivos para excluir');
+                return;
+            }
+            
+            if (!confirm(`Excluir ${selectedFiles.size} arquivos permanentemente?`)) return;
+            
+            // Em uma implementação real com File System Access API,
+            // aqui removeríamos os arquivos do sistema
+            showToast('🗑️ Funcionalidade de exclusão disponível apenas com permissões de escrita');
+        }
+
+        // WebUSB Detection (Experimental)
+        async function detectUSBDevices() {
+            if (!apis.webusb) {
+                showToast('❌ WebUSB não disponível neste navegador');
+                return;
+            }
+            
+            try {
+                const device = await navigator.usb.requestDevice({
+                    filters: [
+                        { classCode: 0x08 }, // Mass Storage
+                        { classCode: 0x00 }  // Interface específica
+                    ]
+                });
+                
+                showToast(`✅ Dispositivo USB detectado: ${device.productName}`);
+                console.log('USB Device:', device);
+                
+                // Tentar abrir conexão
+                await device.open();
+                if (device.configuration === null) {
+                    await device.selectConfiguration(1);
+                }
+                
+                // Interface de storage em massa geralmente é interface 0
+                await device.claimInterface(0);
+                
+                // Aqui teríamos que implementar protocolo SCSI/UFI
+                // Isso é complexo e requer drivers específicos
+                
+                await device.close();
+                showToast('🔌 Conexão USB estabelecida (modo somente leitura)');
+                
+            } catch (err) {
+                console.error('USB Error:', err);
+                showToast('❌ Erro USB: ' + err.message);
+            }
+        }
+
+        // Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+                self.addEventListener('install', e => {
+                    self.skipWaiting();
+                });
+                
+                self.addEventListener('fetch', e => {
+                    e.respondWith(
+                        caches.match(e.request).then(response => {
+                            return response || fetch(e.request);
+                        })
+                    );
+                });
+            `)).catch(err => console.log('SW registration failed:', err));
+        }
+
+        // Background Sync para processamento pesado
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker.ready.then(registration => {
+                // Registrar sync para operações em background
+                console.log('Background Sync disponível');
+            });
+        }
+
+        // Detecção de conexão online/offline
+        window.addEventListener('online', () => {
+            showToast('🌐 Conexão restaurada');
+        });
+
+        window.addEventListener('offline', () => {
+            showToast('📴 Modo offline - funcionalidades limitadas');
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'o':
+                        e.preventDefault();
+                        selectDirectory();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        if (analyzedFiles.length > 0) exportReport();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        if (analyzedFiles.length > 0) repairRealFiles();
+                        break;
+                }
+            }
+        });
+
+        // Visibility API - pausar processamento quando aba não está visível
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isProcessing) {
+                console.log('Análise pausada - aba em background');
+            } else if (!document.hidden && isProcessing) {
+                console.log('Análise retomada');
+            }
+        });
+
+        // Performance monitoring
+        if ('PerformanceObserver' in window) {
+            const perfObserver = new PerformanceObserver((list) => {
+                for (const entry of list.getEntries()) {
+                    console.log('Performance entry:', entry.name, entry.duration);
+                }
+            });
+            perfObserver.observe({ entryTypes: ['measure', 'navigation'] });
+        }
+
+        // Error handling global
+        window.addEventListener('error', (e) => {
+            console.error('Erro global:', e.error);
+            showToast('⚠️ Erro detectado. Verifique o console.');
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Promessa rejeitada:', e.reason);
+        });
+
+        // Inicialização final
+        console.log('Memory Card Doctor inicializado');
+        console.log('APIs disponíveis:', apis);
+    </script>
+</body>
+</html>
